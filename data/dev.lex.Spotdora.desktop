@@ -1,0 +1,31 @@
+[Desktop Entry]
+Version=1.5
+Name=Spotdora
+GenericName=Music Player
+Comment=Native Spotify client heavily optimized for Fedora Workstation
+Exec=spotdora %u
+Icon=dev.lex.Spotdora
+Terminal=false
+Type=Application
+Categories=GTK;GNOME;Audio;Music;AudioVideo;Player;
+MimeType=x-scheme-handler/spotify;
+StartupNotify=true
+X-Purism-FormFactor=Workstation;Mobile;
+SingleMainWindow=true
+Actions=PlayPause;Next;Previous;Stop;
+
+[Desktop Action PlayPause]
+Name=Play/Pause
+Exec=gdbus call --session --dest org.mpris.MediaPlayer2.Spotdora --object-path /org/mpris/MediaPlayer2 --method org.mpris.MediaPlayer2.Player.PlayPause
+
+[Desktop Action Next]
+Name=Next
+Exec=gdbus call --session --dest org.mpris.MediaPlayer2.Spotdora --object-path /org/mpris/MediaPlayer2 --method org.mpris.MediaPlayer2.Player.Next
+
+[Desktop Action Previous]
+Name=Previous
+Exec=gdbus call --session --dest org.mpris.MediaPlayer2.Spotdora --object-path /org/mpris/MediaPlayer2 --method org.mpris.MediaPlayer2.Player.Previous
+
+[Desktop Action Stop]
+Name=Stop
+Exec=gdbus call --session --dest org.mpris.MediaPlayer2.Spotdora --object-path /org/mpris/MediaPlayer2 --method org.mpris.MediaPlayer2.Player.Stop
