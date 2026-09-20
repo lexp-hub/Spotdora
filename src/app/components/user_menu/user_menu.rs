@@ -39,10 +39,20 @@ impl UserMenu {
 
         action_group.add_action(&{
             let settings_action = SimpleAction::new("settings", None);
+            let settings_clone = settings.clone();
             settings_action.connect_activate(move |_, _| {
-                settings.show_self();
+                settings_clone.show_self();
             });
             settings_action
+        });
+
+        action_group.add_action(&{
+            let check_updates_action = SimpleAction::new("check_updates", None);
+            let settings_clone = settings.clone();
+            check_updates_action.connect_activate(move |_, _| {
+                settings_clone.show_updates();
+            });
+            check_updates_action
         });
 
         action_group.add_action(&{
@@ -68,6 +78,8 @@ impl UserMenu {
         let menu = gio::Menu::new();
         // translators: This is a menu entry.
         menu.append(Some(&gettext("Preferences")), Some("menu.settings"));
+        // translators: This is a menu entry.
+        menu.append(Some(&gettext("Check for Updates")), Some("menu.check_updates"));
         // translators: This is a menu entry.
         menu.append(Some(&gettext("About")), Some("menu.about"));
         // translators: This is a menu entry.

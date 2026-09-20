@@ -23,6 +23,7 @@ pub use batch_loader::*;
 
 pub mod credentials;
 pub mod loader;
+pub mod updater;
 
 pub mod rng;
 pub use rng::LazyRandomIndex;

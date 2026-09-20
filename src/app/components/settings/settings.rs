@@ -2,6 +2,7 @@ use crate::app::components::EventListener;
 use crate::app::AppEvent;
 use crate::settings::SpotSettings;
 
+use gettextrs::gettext;
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::CompositeTemplate;
@@ -39,6 +40,33 @@ mod imp {
 
         #[template_child]
         pub theme: TemplateChild<libadwaita::ComboRow>,
+
+        #[template_child]
+        pub updates_page: TemplateChild<libadwaita::PreferencesPage>,
+
+        #[template_child]
+        pub current_version_row: TemplateChild<libadwaita::ActionRow>,
+
+        #[template_child]
+        pub check_updates_btn: TemplateChild<gtk::Button>,
+
+        #[template_child]
+        pub update_status_row: TemplateChild<libadwaita::ActionRow>,
+
+        #[template_child]
+        pub update_spinner: TemplateChild<gtk::Spinner>,
+
+        #[template_child]
+        pub download_rpm_btn: TemplateChild<gtk::Button>,
+
+        #[template_child]
+        pub view_release_btn: TemplateChild<gtk::Button>,
+
+        #[template_child]
+        pub release_notes_row: TemplateChild<libadwaita::ExpanderRow>,
+
+        #[template_child]
+        pub release_notes_label: TemplateChild<gtk::Label>,
     }
 
     #[glib::object_subclass]
@@ -79,7 +107,117 @@ impl SettingsDialog {
         dialog.bind_backend_and_device();
         dialog.bind_settings();
         dialog.connect_theme_select();
+        dialog.setup_updates();
         dialog
+    }
+
+    fn setup_updates(&self) {
+        let widget = self.imp();
+        widget.current_version_row.set_subtitle(&format!(
+            "Spotdora {} (Fedora Workstation)",
+            crate::config::VERSION
+        ));
+
+        let self_clone = self.clone();
+        widget.check_updates_btn.connect_clicked(move |_| {
+            self_clone.trigger_update_check();
+        });
+    }
+
+    pub fn select_updates_page(&self) {
+        let widget = self.imp();
+        self.set_visible_page(&*widget.updates_page);
+    }
+
+    pub fn trigger_update_check(&self) {
+        let widget = self.imp();
+        let check_btn = widget.check_updates_btn.get();
+        let spinner = widget.update_spinner.get();
+        let status_row = widget.update_status_row.get();
+        let download_btn = widget.download_rpm_btn.get();
+        let release_btn = widget.view_release_btn.get();
+        let notes_row = widget.release_notes_row.get();
+        let notes_label = widget.release_notes_label.get();
+
+        check_btn.set_sensitive(false);
+        spinner.set_visible(true);
+        spinner.start();
+        status_row.set_title(&gettext("Checking for updates..."));
+        status_row.set_subtitle(&gettext("Connecting to GitHub to verify the latest release."));
+        download_btn.set_visible(false);
+        release_btn.set_visible(false);
+        notes_row.set_visible(false);
+
+        let current_version = crate::config::VERSION.to_string();
+
+        glib::spawn_future_local(clone!(
+            #[weak]
+            check_btn,
+            #[weak]
+            spinner,
+            #[weak]
+            status_row,
+            #[weak]
+            download_btn,
+            #[weak]
+            release_btn,
+            #[weak]
+            notes_row,
+            #[weak]
+            notes_label,
+            async move {
+                let status = crate::app::updater::check_latest_release(&current_version).await;
+
+                spinner.stop();
+                spinner.set_visible(false);
+                check_btn.set_sensitive(true);
+
+                match status {
+                    crate::app::updater::UpdateStatus::UpToDate(version) => {
+                        status_row.set_title(&gettext("Spotdora is up to date"));
+                        status_row.set_subtitle(&format!(
+                            "Version {version} is the latest release available for Fedora Workstation."
+                        ));
+                    }
+                    crate::app::updater::UpdateStatus::NewVersionAvailable {
+                        version,
+                        rpm_url,
+                        html_url,
+                        notes,
+                    } => {
+                        status_row.set_title(&gettext("New version available!"));
+                        status_row.set_subtitle(&format!(
+                            "Spotdora {version} is ready to download and install."
+                        ));
+
+                        if let Some(rpm) = rpm_url {
+                            download_btn.set_visible(true);
+                            download_btn.connect_clicked(move |_| {
+                                let _ = gio::AppInfo::launch_default_for_uri(
+                                    &rpm,
+                                    None::<&gio::AppLaunchContext>,
+                                );
+                            });
+                        }
+
+                        release_btn.set_visible(true);
+                        release_btn.connect_clicked(move |_| {
+                            let _ = gio::AppInfo::launch_default_for_uri(
+                                &html_url,
+                                None::<&gio::AppLaunchContext>,
+                            );
+                        });
+
+                        notes_label.set_label(&notes);
+                        notes_row.set_visible(true);
+                    }
+                    crate::app::updater::UpdateStatus::Error(err) => {
+                        status_row.set_title(&gettext("Check failed"));
+                        status_row.set_subtitle(&err);
+                    }
+                }
+            }
+        ));
     }
 
     fn bind_backend_and_device(&self) {
@@ -246,6 +384,7 @@ impl SettingsDialog {
     }
 }
 
+#[derive(Clone)]
 pub struct Settings {
     parent: gtk::Window,
     settings_dialog: SettingsDialog,
@@ -275,6 +414,12 @@ impl Settings {
 
     pub fn show_self(&self) {
         self.dialog().present(Some(&self.parent));
+    }
+
+    pub fn show_updates(&self) {
+        self.settings_dialog.select_updates_page();
+        self.dialog().present(Some(&self.parent));
+        self.settings_dialog.trigger_update_check();
     }
 }
 

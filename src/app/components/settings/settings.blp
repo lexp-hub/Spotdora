@@ -4,7 +4,10 @@ using Adw 1;
 template $SettingsWindow : Adw.PreferencesDialog {
   search-enabled: false;
 
-  Adw.PreferencesPage {
+  Adw.PreferencesPage general_page {
+    title: _("General");
+    icon-name: "preferences-system-symbolic";
+
     Adw.PreferencesGroup {
       /* Translators: Header for a group of preference items regarding audio */
 
@@ -96,10 +99,82 @@ template $SettingsWindow : Adw.PreferencesDialog {
 
         /* Translators: Longer description for an item (Access Point Port) in preferences */
 
-        subtitle: _("Port used for connections to Spotify\'s Access Point. Set to 0 if any port is fine.");
+        subtitle: _("Port used for connections to Spotify's Access Point. Set to 0 if any port is fine.");
 
         Entry ap_port {
           valign: center;
+        }
+      }
+    }
+  }
+
+  Adw.PreferencesPage updates_page {
+    title: _("Updates");
+    icon-name: "software-update-available-symbolic";
+
+    Adw.PreferencesGroup {
+      title: _("Spotdora Updates");
+      description: _("Check for new releases and updates for Fedora Workstation.");
+
+      Adw.ActionRow current_version_row {
+        title: _("Installed Version");
+        subtitle: "Spotdora 0.5.1 (Fedora Workstation)";
+        icon-name: "dev.lex.Spotdora";
+
+        [suffix]
+        Button check_updates_btn {
+          valign: center;
+          label: _("Check for Updates");
+
+          styles [
+            "suggested-action",
+          ]
+        }
+      }
+
+      Adw.ActionRow update_status_row {
+        title: _("Update Status");
+        subtitle: _("Click 'Check for Updates' to verify the latest release.");
+
+        [suffix]
+        Spinner update_spinner {
+          valign: center;
+          spinning: false;
+          visible: false;
+        }
+
+        [suffix]
+        Button download_rpm_btn {
+          valign: center;
+          label: _("Download RPM");
+          visible: false;
+
+          styles [
+            "suggested-action",
+          ]
+        }
+
+        [suffix]
+        Button view_release_btn {
+          valign: center;
+          label: _("View Release");
+          visible: false;
+        }
+      }
+
+      Adw.ExpanderRow release_notes_row {
+        title: _("Release Information");
+        subtitle: _("Details from the latest release");
+        visible: false;
+
+        Label release_notes_label {
+          wrap: true;
+          xalign: 0;
+          margin-start: 16;
+          margin-end: 16;
+          margin-top: 12;
+          margin-bottom: 12;
+          selectable: true;
         }
       }
     }
