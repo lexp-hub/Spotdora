@@ -2,7 +2,7 @@ use secret_service::{EncryptionType, Error, SecretService};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, time::SystemTime};
 
-static SPOT_ATTR: &str = "spot_credentials";
+static SPOT_ATTR: &str = "spotdora_credentials";
 
 // I'm not sure this is the right way to make credentials identifiable, but hey, it works
 fn make_attributes() -> HashMap<&'static str, &'static str> {
@@ -44,12 +44,20 @@ impl Credentials {
         let collection = service.get_default_collection().await?;
         if !collection.is_locked().await? {
             let result = collection.search_items(make_attributes()).await?;
-            let item = result.first().ok_or(Error::NoResult)?;
-            item.delete().await
+            if let Some(item) = result.first() {
+                let _ = item.delete().await;
+            }
         } else {
             warn!("Keyring is locked -- not clearing credentials");
-            Ok(())
         }
+
+        // Also remove librespot credentials cache
+        let cache_dir = glib::user_cache_dir().join("spotdora").join("librespot").join("credentials");
+        let _ = std::fs::remove_dir_all(cache_dir);
+        let legacy_cache = glib::user_cache_dir().join("spot").join("librespot").join("credentials");
+        let _ = std::fs::remove_dir_all(legacy_cache);
+
+        Ok(())
     }
 
     pub async fn save(&self) -> Result<(), Error> {

@@ -31,7 +31,7 @@ use url::Url;
 
 use super::TokenStore;
 
-pub const CLIENT_ID: &str = "782ae96ea60f4cdf986a766049607005";
+pub const CLIENT_ID: &str = "65b708073fc0480ea92a077233ca87bd";
 pub const REDIRECT_URI: &str = "http://127.0.0.1:8898/login";
 pub const SCOPES: &str = "user-read-private,\
 playlist-read-private,\
@@ -44,8 +44,7 @@ user-read-playback-state,\
 playlist-modify-public,\
 playlist-modify-private,\
 user-modify-playback-state,\
-streaming,\
-playlist-modify-public";
+streaming";
 
 pub struct SpotOauthClient {
     client: BasicClient,

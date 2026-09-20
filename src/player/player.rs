@@ -357,7 +357,7 @@ async fn create_session_with_port(
         ap_port,
         ..Default::default()
     };
-    let root = glib::user_cache_dir().join("spot").join("librespot");
+    let root = glib::user_cache_dir().join("spotdora").join("librespot");
     let cache = Cache::new(
         Some(root.join("credentials")),
         Some(root.join("volume")),
