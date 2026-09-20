@@ -6,7 +6,7 @@ After=graphical-session.target pipewire.service wireplumber.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/spot
+ExecStart=/usr/bin/spotdora
 Restart=on-failure
 RestartSec=3
 Slice=app-graphical.slice
