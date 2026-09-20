@@ -131,6 +131,7 @@ impl PlaylistHeaderWidget {
 
     pub fn set_artwork(&self, pixbuf: &gdk_pixbuf::Pixbuf) {
         let texture = gdk::Texture::for_pixbuf(pixbuf);
+        self.imp().playlist_art.set_pixel_size(160);
         self.imp().playlist_art.set_paintable(Some(&texture));
     }
 

@@ -28,7 +28,10 @@ mod imp {
         pub cover_btn: TemplateChild<gtk::Button>,
 
         #[template_child]
-        pub cover_image: TemplateChild<gtk::Image>,
+        pub cover_overlay: TemplateChild<gtk::Overlay>,
+
+        #[template_child]
+        pub cover_image: TemplateChild<gtk::Picture>,
     }
 
     #[glib::object_subclass]
@@ -84,6 +87,7 @@ impl AlbumWidget {
 
     fn bind(&self, album_model: &AlbumModel, worker: Worker) {
         let widget = self.imp();
+        widget.cover_overlay.set_overflow(gtk::Overflow::Hidden);
         widget.cover_image.set_overflow(gtk::Overflow::Hidden);
 
         if let Some(cover_art) = album_model.cover() {

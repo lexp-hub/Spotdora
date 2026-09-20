@@ -1,9 +1,16 @@
-/* large style */
+/* base / large style */
 
+.album .card,
 navigation-split-view .album .card {
   min-width: 200px;
   min-height: 200px;
-  border-radius: 6px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.album .card picture,
+navigation-split-view .album .card picture {
+  border-radius: 8px;
 }
 
 navigation-split-view .album {
@@ -12,8 +19,9 @@ navigation-split-view .album {
 }
 
 navigation-split-view .album button {
- border-radius: 12px;
+  border-radius: 12px;
 }
+
 /* small style */
 
 navigation-split-view.collapsed .album .card {
@@ -22,13 +30,18 @@ navigation-split-view.collapsed .album .card {
   border-radius: 6px;
   margin-top: 0px;
   margin-bottom: 0px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
-navigation-split-view .album {
+navigation-split-view.collapsed .album .card picture {
+  border-radius: 6px;
+}
+
+navigation-split-view.collapsed .album {
   margin-top: 0px;
   margin-bottom: 0px;
 }
 
 navigation-split-view.collapsed .album button {
- border-radius: 6px;
+  border-radius: 8px;
 }

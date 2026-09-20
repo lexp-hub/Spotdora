@@ -3,24 +3,24 @@
   <defs>
     <!-- Soft shadow for the plate -->
     <filter id="plate_shadow" x="-15%" y="-15%" width="130%" height="135%">
-      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="3.5" stdDeviation="3.5" flood-color="#000000" flood-opacity="0.55"/>
     </filter>
     <filter id="fedora_shadow" x="-15%" y="-15%" width="130%" height="130%">
-      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#000000" flood-opacity="0.4"/>
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.4"/>
     </filter>
     <filter id="cross_shadow" x="-30%" y="-30%" width="160%" height="160%">
       <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.45"/>
     </filter>
 
     <linearGradient id="bg_plate" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#2a2c2b"/>
-      <stop offset="60%" stop-color="#181918"/>
-      <stop offset="100%" stop-color="#101110"/>
+      <stop offset="0%" stop-color="#2c2f2d"/>
+      <stop offset="60%" stop-color="#1a1c1a"/>
+      <stop offset="100%" stop-color="#111311"/>
     </linearGradient>
 
     <linearGradient id="border_grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#4a4f4b"/>
-      <stop offset="100%" stop-color="#1f211f"/>
+      <stop offset="0%" stop-color="#4f5450"/>
+      <stop offset="100%" stop-color="#222422"/>
     </linearGradient>
 
     <linearGradient id="spotify_green" x1="0.85" y1="0.05" x2="0.15" y2="0.95">
@@ -30,44 +30,44 @@
     </linearGradient>
 
     <radialGradient id="green_glow" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0%" stop-color="#1DB954" stop-opacity="0.35"/>
+      <stop offset="0%" stop-color="#1DB954" stop-opacity="0.4"/>
       <stop offset="100%" stop-color="#1DB954" stop-opacity="0"/>
     </radialGradient>
 
     <linearGradient id="white_s" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#EAF8EE"/>
+      <stop offset="100%" stop-color="#EBF8EE"/>
     </linearGradient>
   </defs>
 
-  <!-- Base Squircle Plate (GNOME App standard size) -->
+  <!-- Expanded Base Squircle Plate -->
   <g filter="url(#plate_shadow)">
-    <rect x="12" y="12" width="104" height="104" rx="24" ry="24"
+    <rect x="6" y="6" width="116" height="116" rx="27" ry="27"
           fill="url(#bg_plate)" stroke="url(#border_grad)" stroke-width="1.2"/>
-    <circle cx="64" cy="64" r="46" fill="url(#green_glow)"/>
+    <circle cx="64" cy="64" r="52" fill="url(#green_glow)"/>
   </g>
 
-  <!-- Fedora Figure in Spotify Green -->
-  <g filter="url(#fedora_shadow)" transform="matrix(1.76 0 0 1.76 -126.2 -188.8)">
+  <!-- Enlarged Fedora Badge in Spotify Green -->
+  <g filter="url(#fedora_shadow)" transform="matrix(2.02 0 0 2.02 -154.2 -225.8)">
     <path d="m 108.10114,121.0821 c -12.447767,0 -22.539321,10.08697 -22.548841,22.53368 v -0.001 17.45121 c 0.007,2.82504 2.29834,5.11422 5.126207,5.11422 0.007,0 0.018,-10e-4 0.0247,-10e-4 v 10e-4 h 17.406044 c 12.44918,-0.007 22.54074,-10.09826 22.54074,-22.54885 0,-12.45341 -10.09545,-22.54885 -22.54885,-22.54885 z"
           fill="url(#spotify_green)"/>
     <path d="m 108.10114,121.0821 c -12.447767,0 -22.539321,10.08697 -22.548841,22.53368 v -0.001 17.45121 c 0.007,2.82504 2.29834,5.11422 5.126207,5.11422 0.007,0 0.018,-10e-4 0.0247,-10e-4 v 10e-4 h 17.406044 c 12.44918,-0.007 22.54074,-10.09826 22.54074,-22.54885 0,-12.45341 -10.09545,-22.54885 -22.54885,-22.54885 z"
-          fill="none" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="0.7"/>
+          fill="none" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="0.6"/>
   </g>
 
-  <!-- Mathematically Continuous Infinity-S Ribbon -->
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Under-pass of the continuous loop: connecting (52, 86) back to (76, 41) -->
+  <!-- Mathematically Continuous Infinity-S Ribbon (Enlarged & Bold) -->
+  <g transform="translate(64, 64) scale(1.15) translate(-64, -64)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Under-pass of the continuous loop -->
     <path d="M 52 86 
              C 45 77, 49 67, 57 60 
              C 65 53, 73 48, 76 41"
-          stroke="url(#white_s)" stroke-width="9.5" opacity="0.52"/>
+          stroke="url(#white_s)" stroke-width="9.6" opacity="0.55"/>
 
     <!-- Dominant Foreground S-Ribbon with depth drop shadow -->
     <path d="M 76 41 
              C 69 34, 49 35, 49 48.5 
              C 49 61, 79 63, 79 78 
              C 79 92, 59 93, 52 86"
-          stroke="url(#white_s)" stroke-width="9.5" filter="url(#cross_shadow)"/>
+          stroke="url(#white_s)" stroke-width="9.6" filter="url(#cross_shadow)"/>
   </g>
 </svg>

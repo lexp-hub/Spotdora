@@ -15,12 +15,25 @@ template $AlbumWidget : Adw.Bin {
       orientation: vertical;
       spacing: 6;
 
-      Image cover_image {
-        icon-name: "media-playback-start-symbolic";
+      Overlay cover_overlay {
+        overflow: hidden;
 
         styles [
           "card",
         ]
+
+        Image placeholder_icon {
+          halign: center;
+          valign: center;
+          icon-name: "emblem-music-symbolic";
+          pixel-size: 48;
+        }
+
+        [overlay]
+        Picture cover_image {
+          can-shrink: true;
+          content-fit: cover;
+        }
       }
 
       Label album_label {
