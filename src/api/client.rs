@@ -240,7 +240,15 @@ impl SpotifyClient {
                 etag,
             }),
             StatusCode::UNAUTHORIZED => Err(SpotifyApiError::InvalidToken),
-            StatusCode::TOO_MANY_REQUESTS => Err(SpotifyApiError::TooManyRequests),
+            StatusCode::TOO_MANY_REQUESTS => {
+                let retry_after = result
+                    .headers()
+                    .get("retry-after")
+                    .and_then(|header| header.to_str().ok())
+                    .unwrap_or("unknown");
+                warn!("Spotify API rate limit exceeded. Retry-After: {}s", retry_after);
+                Err(SpotifyApiError::TooManyRequests)
+            }
             StatusCode::NOT_MODIFIED => Ok(SpotifyResponse {
                 kind: SpotifyResponseKind::NotModified,
                 max_age: cache_control.unwrap_or(10),

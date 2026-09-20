@@ -172,7 +172,7 @@ impl SpotifyPlayer {
                     .get_valid_token()
                     .await
                     .map_err(|_| SpotifyError::LoginFailed)?;
-                let credentials = Credentials::with_access_token(token.access_token.clone());
+                let credentials = Credentials::with_access_token(token.player_token());
                 session
                     .connect(credentials, true)
                     .await
@@ -256,7 +256,7 @@ impl SpotifyPlayer {
         &mut self,
         credentials: credentials::Credentials,
     ) -> Result<(), SpotifyError> {
-        let creds = Credentials::with_access_token(&credentials.access_token);
+        let creds = Credentials::with_access_token(credentials.player_token());
         let new_session = create_session(&creds, self.settings.ap_port).await?;
         let username = new_session.username();
 
@@ -265,8 +265,9 @@ impl SpotifyPlayer {
         tokio::task::spawn_local(async move {
             loop {
                 if let Ok(token) = oauth_client.refresh_token_at_expiry().await {
+                    let player_token = token.player_token().to_string();
                     _ = session
-                        .connect(Credentials::with_access_token(token.access_token), true)
+                        .connect(Credentials::with_access_token(player_token), true)
                         .await;
                 }
             }

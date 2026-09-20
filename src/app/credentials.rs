@@ -17,9 +17,21 @@ pub struct Credentials {
     pub access_token: String,
     pub refresh_token: String,
     pub token_expiry_time: Option<SystemTime>,
+    #[serde(default)]
+    pub player_access_token: Option<String>,
+    #[serde(default)]
+    pub player_refresh_token: Option<String>,
+    #[serde(default)]
+    pub player_token_expiry_time: Option<SystemTime>,
 }
 
 impl Credentials {
+    pub fn player_token(&self) -> &str {
+        self.player_access_token
+            .as_deref()
+            .unwrap_or(&self.access_token)
+    }
+
     pub fn token_expired(&self) -> bool {
         match self.token_expiry_time {
             Some(v) => SystemTime::now() > v,

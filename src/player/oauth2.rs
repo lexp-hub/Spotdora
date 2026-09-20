@@ -31,7 +31,8 @@ use url::Url;
 
 use super::TokenStore;
 
-pub const CLIENT_ID: &str = "65b708073fc0480ea92a077233ca87bd";
+pub const WEB_CLIENT_ID: &str = "782ae96ea60f4cdf986a766049607005";
+pub const PLAYER_CLIENT_ID: &str = "65b708073fc0480ea92a077233ca87bd";
 pub const REDIRECT_URI: &str = "http://127.0.0.1:8898/login";
 pub const SCOPES: &str = "user-read-private,\
 playlist-read-private,\
@@ -43,18 +44,19 @@ user-read-recently-played,\
 user-read-playback-state,\
 playlist-modify-public,\
 playlist-modify-private,\
-user-modify-playback-state,\
-streaming";
+user-modify-playback-state";
 
 pub struct SpotOauthClient {
-    client: BasicClient,
+    web_client: BasicClient,
+    player_client: BasicClient,
     token_store: Arc<TokenStore>,
 }
 
 pub struct AuthcodeChallenge {
-    pkce_verifier: PkceCodeVerifier,
+    web_pkce_verifier: PkceCodeVerifier,
+    player_pkce_verifier: PkceCodeVerifier,
     pub auth_url: Url,
-    listener: JoinHandle<Result<AuthorizationCode, OAuthError>>,
+    listener: JoinHandle<Result<(AuthorizationCode, AuthorizationCode), OAuthError>>,
 }
 
 impl SpotOauthClient {
@@ -64,15 +66,26 @@ impl SpotOauthClient {
         let token_url = TokenUrl::new("https://accounts.spotify.com/api/token".to_string())
             .expect("Malformed URL");
         let redirect_url = RedirectUrl::new(REDIRECT_URI.to_string()).expect("Malformed URL");
-        let client = BasicClient::new(
-            ClientId::new(CLIENT_ID.to_string()),
+
+        let web_client = BasicClient::new(
+            ClientId::new(WEB_CLIENT_ID.to_string()),
+            None,
+            auth_url.clone(),
+            Some(token_url.clone()),
+        )
+        .set_redirect_uri(redirect_url.clone());
+
+        let player_client = BasicClient::new(
+            ClientId::new(PLAYER_CLIENT_ID.to_string()),
             None,
             auth_url,
             Some(token_url),
         )
         .set_redirect_uri(redirect_url);
+
         Self {
-            client,
+            web_client,
+            player_client,
             token_store,
         }
     }
@@ -81,52 +94,59 @@ impl SpotOauthClient {
         &self,
         notify_complete: impl FnOnce() + 'static,
     ) -> Result<AuthcodeChallenge, OAuthError> {
-        let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
+        let (web_pkce_challenge, web_pkce_verifier) = PkceCodeChallenge::new_random_sha256();
+        let (player_pkce_challenge, player_pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
-        // Generate the full authorization URL.
-        // Some of these scopes are unavailable for custom client IDs. Which?
         let request_scopes: Vec<oauth2::Scope> =
             SCOPES.split(",").map(|s| Scope::new(s.into())).collect();
 
-        let (auth_url, csrf_token) = self
-            .client
+        let (auth_url, web_csrf_token) = self
+            .web_client
             .authorize_url(CsrfToken::new_random)
             .add_scopes(request_scopes)
-            .set_pkce_challenge(pkce_challenge)
+            .set_pkce_challenge(web_pkce_challenge)
+            .url();
+
+        let (player_auth_url, player_csrf_token) = self
+            .player_client
+            .authorize_url(CsrfToken::new_random)
+            .add_scope(Scope::new("streaming".into()))
+            .set_pkce_challenge(player_pkce_challenge)
             .url();
 
         Ok(AuthcodeChallenge {
-            pkce_verifier,
+            web_pkce_verifier,
+            player_pkce_verifier,
             auth_url,
             listener: tokio::task::spawn_local(async move {
-                let result = wait_for_authcode(csrf_token).await;
+                let result =
+                    wait_for_authcodes(web_csrf_token, player_auth_url, player_csrf_token).await;
                 notify_complete();
                 result
             }),
         })
     }
 
-    /// Obtain a Spotify access token using the authorization code with PKCE OAuth flow.
-    /// The redirect_uri must match what is registered to the client ID.
+    /// Obtain Spotify access tokens using authorization code with PKCE OAuth flow for both Web API and streaming.
     pub async fn exchange_authcode(
         &self,
         challenge: AuthcodeChallenge,
     ) -> Result<Credentials, OAuthError> {
-        let code = challenge
+        let (web_code, player_code) = challenge
             .listener
             .await
             .map_err(|_| OAuthError::AuthCodeListenerTerminated)??;
 
-        let token = self
-            .client
-            .exchange_code(code)
-            .set_pkce_verifier(challenge.pkce_verifier)
+        let web_token = self
+            .web_client
+            .exchange_code(web_code)
+            .set_pkce_verifier(challenge.web_pkce_verifier)
             .request_async(async_http_client)
             .await
             .map_err(|e| match e {
                 RequestTokenError::ServerResponse(res) => {
                     error!(
-                        "An error occured while exchange a code: {}",
+                        "An error occured while exchanging web code: {}",
                         res.to_string()
                     );
                     OAuthError::ExchangeCode { e: res.to_string() }
@@ -134,20 +154,50 @@ impl SpotOauthClient {
                 e => OAuthError::ExchangeCode { e: e.to_string() },
             })?;
 
-        trace!("Obtained new access token: {token:?}");
+        let player_token = self
+            .player_client
+            .exchange_code(player_code)
+            .set_pkce_verifier(challenge.player_pkce_verifier)
+            .request_async(async_http_client)
+            .await
+            .map_err(|e| match e {
+                RequestTokenError::ServerResponse(res) => {
+                    error!(
+                        "An error occured while exchanging player code: {}",
+                        res.to_string()
+                    );
+                    OAuthError::ExchangeCode { e: res.to_string() }
+                }
+                e => OAuthError::ExchangeCode { e: e.to_string() },
+            })?;
 
-        let refresh_token = token
+        trace!("Obtained new web token: {web_token:?}");
+        trace!("Obtained new player token: {player_token:?}");
+
+        let refresh_token = web_token
             .refresh_token()
             .ok_or(OAuthError::NoRefreshToken)?
             .secret()
             .to_string();
 
+        let player_refresh = player_token
+            .refresh_token()
+            .map(|t| t.secret().to_string());
+
         let token = Credentials {
-            access_token: token.access_token().secret().to_string(),
+            access_token: web_token.access_token().secret().to_string(),
             refresh_token,
             token_expiry_time: Some(
                 SystemTime::now()
-                    + token
+                    + web_token
+                        .expires_in()
+                        .unwrap_or_else(|| Duration::from_secs(3600)),
+            ),
+            player_access_token: Some(player_token.access_token().secret().to_string()),
+            player_refresh_token: player_refresh,
+            player_token_expiry_time: Some(
+                SystemTime::now()
+                    + player_token
                         .expires_in()
                         .unwrap_or_else(|| Duration::from_secs(3600)),
             ),
@@ -166,16 +216,16 @@ impl SpotOauthClient {
         }
     }
 
-    pub async fn refresh_token(&self, old_token: Credentials) -> Result<Credentials, OAuthError> {
+    pub async fn refresh_token(&self, mut old_token: Credentials) -> Result<Credentials, OAuthError> {
         let Ok(token) = self
-            .client
-            .exchange_refresh_token(&RefreshToken::new(old_token.refresh_token))
+            .web_client
+            .exchange_refresh_token(&RefreshToken::new(old_token.refresh_token.clone()))
             .request_async(async_http_client)
             .await
             .inspect_err(|e| {
                 if let RequestTokenError::ServerResponse(res) = e {
                     error!(
-                        "An error occured while refreshing the token: {}",
+                        "An error occured while refreshing the web token: {}",
                         res.to_string()
                     );
                 }
@@ -187,23 +237,40 @@ impl SpotOauthClient {
 
         let refresh_token = token
             .refresh_token()
-            .ok_or(OAuthError::NoRefreshToken)?
-            .secret()
-            .to_string();
+            .map(|r| r.secret().to_string())
+            .unwrap_or(old_token.refresh_token);
 
-        let new_token = Credentials {
-            access_token: token.access_token().secret().to_string(),
-            refresh_token,
-            token_expiry_time: Some(
-                SystemTime::now()
-                    + token
-                        .expires_in()
-                        .unwrap_or_else(|| Duration::from_secs(3600)),
-            ),
-        };
+        old_token.access_token = token.access_token().secret().to_string();
+        old_token.refresh_token = refresh_token;
+        old_token.token_expiry_time = Some(
+            SystemTime::now()
+                + token
+                    .expires_in()
+                    .unwrap_or_else(|| Duration::from_secs(3600)),
+        );
 
-        self.token_store.set(new_token.clone()).await;
-        Ok(new_token)
+        if let Some(player_refresh) = old_token.player_refresh_token.clone() {
+            if let Ok(p_token) = self
+                .player_client
+                .exchange_refresh_token(&RefreshToken::new(player_refresh))
+                .request_async(async_http_client)
+                .await
+            {
+                old_token.player_access_token = Some(p_token.access_token().secret().to_string());
+                if let Some(r) = p_token.refresh_token() {
+                    old_token.player_refresh_token = Some(r.secret().to_string());
+                }
+                old_token.player_token_expiry_time = Some(
+                    SystemTime::now()
+                        + p_token
+                            .expires_in()
+                            .unwrap_or_else(|| Duration::from_secs(3600)),
+                );
+            }
+        }
+
+        self.token_store.set(old_token.clone()).await;
+        Ok(old_token)
     }
 
     pub async fn refresh_token_at_expiry(&self) -> Result<Credentials, OAuthError> {
@@ -260,43 +327,85 @@ pub enum OAuthError {
     InvalidState,
 }
 
-/// Spawn HTTP server at provided socket address to accept OAuth callback and return auth code.
-async fn wait_for_authcode(expected_state: CsrfToken) -> Result<AuthorizationCode, OAuthError> {
+/// Spawn HTTP server to accept OAuth callbacks for both Web API and Player, automatically chaining them.
+async fn wait_for_authcodes(
+    web_csrf_token: CsrfToken,
+    player_auth_url: Url,
+    player_csrf_token: CsrfToken,
+) -> Result<(AuthorizationCode, AuthorizationCode), OAuthError> {
     let addr = get_socket_address(REDIRECT_URI).expect("Invalid redirect uri");
 
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|e| OAuthError::AuthCodeListenerBind { addr, e })?;
 
-    let (mut stream, _) = listener
-        .accept()
-        .await
-        .map_err(|_| OAuthError::AuthCodeListenerTerminated)?;
+    // Wait for the Web API authorization code, then redirect the browser to the Player auth URL
+    let web_code = wait_for_single_code(&listener, &web_csrf_token, Some(&player_auth_url)).await?;
 
-    let mut request_line = String::new();
-    let mut reader = BufReader::new(&mut stream);
-    reader
-        .read_line(&mut request_line)
-        .await
-        .map_err(|_| OAuthError::AuthCodeListenerParse)?;
+    // Wait for the Player authorization code, then finish with login.html
+    let player_code = wait_for_single_code(&listener, &player_csrf_token, None).await?;
 
-    let (state, code) = parse_query(&request_line)?;
-    if *expected_state.secret() != *state.secret() {
-        return Err(OAuthError::InvalidState);
+    Ok((web_code, player_code))
+}
+
+async fn wait_for_single_code(
+    listener: &tokio::net::TcpListener,
+    expected_state: &CsrfToken,
+    next_url: Option<&Url>,
+) -> Result<AuthorizationCode, OAuthError> {
+    loop {
+        let (mut stream, _) = listener
+            .accept()
+            .await
+            .map_err(|_| OAuthError::AuthCodeListenerTerminated)?;
+
+        let mut request_line = String::new();
+        let mut reader = BufReader::new(&mut stream);
+        if reader.read_line(&mut request_line).await.is_err() {
+            continue;
+        }
+
+        let (state, code) = match parse_query(&request_line) {
+            Ok(res) => res,
+            Err(_) => {
+                let resp = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                let _ = stream.write_all(resp.as_bytes()).await;
+                continue;
+            }
+        };
+
+        if *expected_state.secret() != *state.secret() {
+            let resp = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = stream.write_all(resp.as_bytes()).await;
+            continue;
+        }
+
+        let response = match next_url {
+            Some(url) => {
+                let html = format!(
+                    r#"<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url={}"></head><body style="background:#121212;color:#ffffff;font-family:sans-serif;text-align:center;padding-top:60px;"><p>Connecting audio streaming engine...</p></body></html>"#,
+                    url
+                );
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    html.len(),
+                    html
+                )
+            }
+            None => {
+                let message = include_str!("./login.html");
+                format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    message.len(),
+                    message
+                )
+            }
+        };
+
+        let _ = stream.write_all(response.as_bytes()).await;
+        let _ = stream.flush().await;
+        return Ok(code);
     }
-
-    let message = include_str!("./login.html");
-    let response = format!(
-        "HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n{}",
-        message.len(),
-        message
-    );
-    stream
-        .write_all(response.as_bytes())
-        .await
-        .map_err(|_| OAuthError::AuthCodeListenerWrite)?;
-
-    Ok(code)
 }
 
 fn parse_query(request_line: &str) -> Result<(CsrfToken, AuthorizationCode), OAuthError> {
