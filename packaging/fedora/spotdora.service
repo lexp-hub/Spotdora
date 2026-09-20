@@ -1,0 +1,16 @@
+[Unit]
+Description=Spotdora - Spotify Client for Fedora Workstation
+Documentation=https://github.com/lexp-hub/Spotdora
+PartOf=graphical-session.target
+After=graphical-session.target pipewire.service wireplumber.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/spot
+Restart=on-failure
+RestartSec=3
+Slice=app-graphical.slice
+
+[Install]
+WantedBy=graphical-session.target
+

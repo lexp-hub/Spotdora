@@ -1,0 +1,7 @@
+/target/
+/doc/target
+/cargo/
+/build/
+/.flatpak-builder/
+/src/config.rs
+/subprojects/blueprint-compiler
